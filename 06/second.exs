@@ -9,9 +9,23 @@ IO.stream(:stdio, :line)
     div(tmax + floor(:math.sqrt(tmax*tmax - 4*rec)), 2),
     div(tmax - ceil(:math.sqrt(tmax*tmax - 4*rec)), 2)
   ]
-  |> then(&apply(Range, :new, &1))
-  |> Enum.filter(fn t -> -t*t + tmax*t > rec end)
-  |> Enum.count()
+  |> then(fn xs ->
+    [min, max] = Enum.sort(xs)
+
+    beat_the_record = fn t -> -t*t + tmax*t > rec end
+
+    min =
+      min
+      |> Stream.unfold(fn i -> {i, i + 1} end)
+      |> Enum.find(beat_the_record)
+
+    max =
+      max
+      |> Stream.unfold(fn i -> {i, i - 1} end)
+      |> Enum.find(beat_the_record)
+
+    max - min + 1
+  end)
 end)
 |> IO.inspect(charlists: :as_lists)
 |> Enum.reduce(1, &(&1 * &2))
