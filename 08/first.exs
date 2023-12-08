@@ -9,7 +9,7 @@ end)
 
 instructions
 |> Stream.cycle()
-|> Stream.with_index()
+|> Stream.with_index(1)
 |> Stream.transform("AAA", fn {instruction, steps}, node ->
   {left, right} = Map.get(nodes, node)
 
@@ -21,4 +21,4 @@ instructions
   {[{new_node, steps}], new_node}
 end)
 |> Enum.find(fn {node, _steps} -> node == "ZZZ" end)
-|> then(fn {_node, steps} -> IO.puts(steps + 1) end)
+|> then(fn {_node, steps} -> IO.puts(steps) end)
