@@ -1,9 +1,9 @@
 defmodule Grid do
   defstruct xmax: 0, ymax: 0, grid: %{}
 
-  def new() do
-    %Grid{}
-  end
+  @expansion 2
+
+  def new(), do: %Grid{}
 
   def put(grid, {x, y}, nil) do
     %{grid | grid: Map.delete(grid.grid, {x, y})}
@@ -20,19 +20,6 @@ defmodule Grid do
     Map.get(grid.grid, {x, y})
   end
 
-  def render(grid) do
-    for y <- 0..grid.ymax do
-      for x <- 0..grid.xmax do
-        case get(grid, {x, y}) do
-          nil -> "."
-          value -> to_string(value)
-        end
-      end
-      |> Enum.join()
-      |> IO.puts()
-    end
-  end
-
   def expand(grid) do
     grid
     |> expand_columns(0)
@@ -44,26 +31,25 @@ defmodule Grid do
   end
 
   defp expand_columns(grid, x) do
-    all_empty =
-      Enum.all?(0..grid.ymax, fn y ->
-        get(grid, {x, y}) == nil
+    non_empty =
+      Enum.any?(grid, fn {{xc, _yc}, value} ->
+        xc == x && value != nil
       end)
 
-    case all_empty do
-      true ->
-        Enum.reduce(grid.xmax..x, grid, fn x, grid ->
-          Enum.reduce(0..grid.ymax, grid, fn y, grid ->
-            put(grid, {x + 1, y}, get(grid, {x, y}))
-          end)
-        end)
-        |> then(fn grid ->
-          Enum.reduce(0..grid.ymax, grid, fn y, grid ->
-            put(grid, {x, y}, nil)
-          end)
-        end)
-        |> expand_columns(x + 2)
-
+    case non_empty do
       false ->
+        Enum.reduce(grid, grid, fn {{xc, yc}, value}, grid ->
+          if xc > x do
+            grid
+            |> put({xc, yc}, nil)
+            |> put({xc + @expansion - 1, yc}, value)
+          else
+            grid
+          end
+        end)
+        |> expand_columns(x + @expansion)
+
+      true ->
         expand_columns(grid, x + 1)
     end
   end
@@ -73,28 +59,50 @@ defmodule Grid do
   end
 
   defp expand_lines(grid, y) do
-    all_empty =
-      Enum.all?(0..grid.xmax, fn x ->
-        get(grid, {x, y}) == nil
+    non_empty =
+      Enum.any?(grid, fn {{_xc, yc}, value} ->
+        yc == y && value != nil
       end)
 
-    case all_empty do
-      true ->
-        Enum.reduce(grid.ymax..y, grid, fn y, grid ->
-          Enum.reduce(0..grid.xmax, grid, fn x, grid ->
-            put(grid, {x, y + 1}, get(grid, {x, y}))
-          end)
-        end)
-        |> then(fn grid ->
-          Enum.reduce(0..grid.xmax, grid, fn x, grid ->
-            put(grid, {x, y}, nil)
-          end)
-        end)
-        |> expand_lines(y + 2)
-
+    case non_empty do
       false ->
+        Enum.reduce(grid, grid, fn {{xc, yc}, value}, grid ->
+          if yc > y do
+            grid
+            |> put({xc, yc}, nil)
+            |> put({xc, yc + @expansion - 1}, value)
+          else
+            grid
+          end
+        end)
+        |> expand_lines(y + @expansion)
+
+      true ->
         expand_lines(grid, y + 1)
     end
+  end
+end
+
+defimpl Enumerable, for: Grid do
+  def count(%Grid{grid: map}) do
+    {:ok, map_size(map)}
+  end
+
+  def member?(%Grid{grid: map}, {key, value}) do
+    {:ok, match?(%{^key => ^value}, map)}
+  end
+
+  def member?(_map, _other) do
+    {:ok, false}
+  end
+
+  def slice(%Grid{grid: map}) do
+    size = map_size(map)
+    {:ok, size, &:maps.to_list/1}
+  end
+
+  def reduce(%Grid{grid: map}, acc, fun) do
+    Enumerable.List.reduce(:maps.to_list(map), acc, fun)
   end
 end
 
