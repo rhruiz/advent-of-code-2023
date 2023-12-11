@@ -1,5 +1,5 @@
 defmodule Grid do
-  defstruct xmax: 0, ymax: 0, grid: %{}
+  defstruct max: {0, 0}, grid: %{}
 
   def new(), do: %Grid{}
 
@@ -8,10 +8,10 @@ defmodule Grid do
   end
 
   def put(grid, {x, y}, value) do
-    xmax = max(grid.xmax, x)
-    ymax = max(grid.ymax, y)
+    xmax = max(elem(grid.max, 0), x)
+    ymax = max(elem(grid.max, 1), y)
 
-    %{grid | xmax: xmax, ymax: ymax, grid: Map.put(grid.grid, {x, y}, value)}
+    %{grid | max: {xmax, ymax}, grid: Map.put(grid.grid, {x, y}, value)}
   end
 
   def get(grid, {x, y}) do
@@ -20,79 +20,56 @@ defmodule Grid do
 
   def expand(grid, expansion) do
     grid
-    |> expand_columns(0, expansion)
-    |> expand_lines(0, expansion)
+    |> expand_axis(0, 0, expansion)
+    |> expand_axis(0, 1, expansion)
   end
 
-  defp expand_columns(%Grid{xmax: xmax} = grid, x, _) when x > xmax do
+  defp expand_axis(%Grid{max: {xmax, _}} = grid, pos, 0, _) when pos > xmax do
     grid
   end
 
-  defp expand_columns(grid, x, expansion) do
+  defp expand_axis(%Grid{max: {_, ymax}} = grid, pos, 1, _) when pos > ymax do
+    grid
+  end
+
+  defp expand_axis(grid, pos, index, expansion) do
     non_empty =
-      Enum.any?(grid, fn {{xc, _yc}, value} ->
-        xc == x && value != nil
+      Enum.any?(grid, fn {position, value} ->
+        elem(position, index) == pos && value != nil
       end)
 
     case non_empty do
       false ->
-        Enum.reduce(grid, grid, fn {{xc, yc}, value}, grid ->
-          if xc > x do
+        Enum.reduce(grid, grid, fn {position, value}, grid ->
+          if elem(position, index) > pos do
+            new_position = put_elem(position, index, elem(position, index) + expansion - 1)
+
             grid
-            |> put({xc, yc}, nil)
-            |> put({xc + expansion - 1, yc}, value)
+            |> put(position, nil)
+            |> put(new_position, value)
           else
             grid
           end
         end)
-        |> expand_columns(x + expansion, expansion)
+        |> expand_axis(pos + expansion, index, expansion)
 
       true ->
-        expand_columns(grid, x + 1, expansion)
+        expand_axis(grid, pos + 1, index, expansion)
     end
   end
 
-  defp expand_lines(%Grid{ymax: ymax} = grid, y, _) when y > ymax do
-    grid
-  end
-
-  defp expand_lines(grid, y, expansion) do
-    non_empty =
-      Enum.any?(grid, fn {{_xc, yc}, value} ->
-        yc == y && value != nil
-      end)
-
-    case non_empty do
-      false ->
-        Enum.reduce(grid, grid, fn {{xc, yc}, value}, grid ->
-          if yc > y do
-            grid
-            |> put({xc, yc}, nil)
-            |> put({xc, yc + expansion - 1}, value)
-          else
-            grid
-          end
-        end)
-        |> expand_lines(y + expansion, expansion)
-
-      true ->
-        expand_lines(grid, y + 1, expansion)
-    end
-  end
-
-  def distances(grid) do
-    pairs =
-      Enum.reduce(Map.keys(grid.grid), MapSet.new(), fn coord, pairs ->
-        for candidate <- Map.keys(grid.grid),
-        Grid.get(grid, coord) != nil,
-        Grid.get(grid, candidate) != nil,
-        candidate != coord,
-        reduce: pairs do
+  def distances(%Grid{grid: map} = grid) do
+    map
+    |> Map.keys()
+    |> Enum.reduce(MapSet.new(), fn coord, pairs ->
+      for candidate <- Map.keys(map),
+          candidate != coord,
+          Grid.get(grid, coord) != nil,
+          Grid.get(grid, candidate) != nil,
+          reduce: pairs do
         pairs -> MapSet.put(pairs, MapSet.new([coord, candidate]))
       end
-          end)
-
-    pairs
+    end)
     |> Enum.reduce(0, fn pair, acc ->
       [{xa, ya}, {xb, yb}] = MapSet.to_list(pair)
       acc + abs(xa - xb) + abs(ya - yb)
