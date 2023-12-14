@@ -2,7 +2,7 @@ import Bitwise
 
 defmodule Mirror do
   def find({map, rows, cols}) do
-    find(map, map, rows, 0, 0, false)
+    find(map, rows, 0, 0, false)
     |> then(fn
       false -> false
       count -> count * 100
@@ -11,21 +11,21 @@ defmodule Mirror do
       (
         map
         |> transpose(rows, cols)
-        |> then(fn map -> find(map, map, cols, 0, 0, false) end)
+        |> find(cols, 0, 0, false)
       )
   end
 
-  def find(_og_map, _map, rows, center, _, _flipped) when center > rows + 1 do
+  def find(_map, rows, center, _, _flipped) when center > rows + 1 do
     false
   end
 
-  def find(og_map, map, rows, center, delta, flipped) do
+  def find(map, rows, center, delta, flipped) do
     case {flipped, Map.get(map, center - delta), Map.get(map, center + delta + 1)} do
       {false, a, nil} when a != nil ->
-        find(og_map, map, rows, center + 1, 0, false)
+        find(map, rows, center + 1, 0, false)
 
       {false, nil, b} when b != nil ->
-        find(og_map, map, rows, center + 1, 0, false)
+        find(map, rows, center + 1, 0, false)
 
       {true, a, nil} when a != nil ->
         center + 1
@@ -34,21 +34,19 @@ defmodule Mirror do
         center + 1
 
       {flipped, a, a} ->
-        find(og_map, map, rows, center, delta + 1, flipped)
+        find(map, rows, center, delta + 1, flipped)
 
       {true, _, _} ->
-        find(og_map, og_map, rows, center + 1, 0, false)
+        find(map, rows, center + 1, 0, false)
 
       {false, a, b} ->
         pow = :math.log2(bxor(a, b))
 
         case pow == Float.round(pow, 0) do
           false ->
-            find(og_map, map, rows, center + 1, 0, flipped)
+            find(map, rows, center + 1, 0, flipped)
           true ->
-            find(og_map, Map.put(map, center - delta, map[center + delta + 1]), rows, center, delta, true)
-            # ||
-            #   find(og_mag, Map.put(map, center + delta + 1, map[center - delta]), rows, center, delta, true)
+            find(map, rows, center, delta + 1, true)
         end
     end
   end
