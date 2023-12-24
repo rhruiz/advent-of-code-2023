@@ -2,11 +2,15 @@ vx = fn {_, {vx, _, _}} -> vx end
 vy = fn {_, {_, vy, _}} -> vy end
 
 to_line = fn {{sx, sy, _}, {vx, vy, _}} ->
-  {vy/vx, sy - (sx * vy / vx)}
+  {vy / vx, sy - sx * vy / vx}
 end
 
 intersects = fn {a, c}, {b, d} ->
-  {(d - c) / (a - b), a*(d - c) / (a - b) + c}
+  {(d - c) / (a - b), a * (d - c) / (a - b) + c}
+end
+
+time = fn {{sx, _, _}, {vx, _, _}}, x ->
+  (x - sx) / vx
 end
 
 IO.stream(:stdio, :line)
@@ -32,19 +36,23 @@ end)
 end)
 |> Stream.uniq()
 |> Stream.map(&MapSet.to_list/1)
-|> Stream.flat_map(fn [{{sxl, syl, _}, {vxl, vyl, _}} = left, {{sxr, syr, _}, {vxr, vyr, _}} = right] ->
+|> Stream.flat_map(fn [left, right] ->
   {x, y} = intersects.(to_line.(left), to_line.(right))
 
-  if (x - sxl)/vxl > 0 && (y - syl)/vyl > 0 && (x - sxr)/vxr > 0 && (y - syr)/vyr > 0 do
+  if time.(left, x) >= 0 && time.(right, x) >= 0 do
     [{x, y}]
   else
     []
   end
 end)
-|> Stream.filter(fn {a, b} ->
-  {low, high} = if(Process.get(:line_count, 0) > 10, do: {200000000000000, 400000000000000}, else: {7, 27})
+|> Stream.filter(fn {x, y} ->
+  {low, high} =
+    if(Process.get(:line_count, 0) > 10,
+      do: {200_000_000_000_000, 400_000_000_000_000},
+      else: {7, 27}
+    )
 
-  a >= low && a <= high && b >= low && b <= high
+  x >= low && x <= high && y >= low && y <= high
 end)
 |> Enum.into([])
 |> Enum.count()
