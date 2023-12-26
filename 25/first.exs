@@ -38,25 +38,18 @@ to_cut =
     ]
   end
 
-roots = to_cut |> hd()
-
-edges =
-  for pair <- to_cut,
-      reduce: edges do
-    edges -> MapSet.delete(edges, MapSet.new(pair))
-  end
+edges = Enum.reduce(to_cut, edges, &MapSet.delete(&2, MapSet.new(&1)))
 
 index =
-  for pair <- edges,
-      [a, b] = MapSet.to_list(pair),
-      reduce: %{} do
-    index ->
-      index
-      |> Map.put_new(a, MapSet.new())
-      |> Map.put_new(b, MapSet.new())
-      |> Map.update!(a, &MapSet.put(&1, b))
-      |> Map.update!(b, &MapSet.put(&1, a))
-  end
+  Enum.reduce(edges, %{}, fn pair, index ->
+    [a, b] = MapSet.to_list(pair)
+
+    index
+    |> Map.put_new(a, MapSet.new())
+    |> Map.put_new(b, MapSet.new())
+    |> Map.update!(a, &MapSet.put(&1, b))
+    |> Map.update!(b, &MapSet.put(&1, a))
+  end)
 
 count = fn
   [], acc, _ ->
@@ -72,7 +65,8 @@ count = fn
     end
 end
 
-roots
+to_cut
+|> hd()
 |> Enum.map(fn root -> count.([root], MapSet.new(), count) end)
 |> Enum.reduce(&Kernel.*/2)
 |> IO.inspect()
