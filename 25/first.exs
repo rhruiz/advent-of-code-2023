@@ -43,7 +43,7 @@ roots = to_cut |> hd()
 edges =
   for pair <- to_cut,
       reduce: edges do
-    edges -> MapSet.delete(edges, MapSet.new(pair |> IO.inspect(label: "removing pair")))
+    edges -> MapSet.delete(edges, MapSet.new(pair))
   end
 
 index =
@@ -57,7 +57,6 @@ index =
       |> Map.update!(a, &MapSet.put(&1, b))
       |> Map.update!(b, &MapSet.put(&1, a))
   end
-  |> IO.inspect()
 
 count = fn
   [], acc, _ ->
