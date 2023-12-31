@@ -1,7 +1,6 @@
 hails =
   IO.stream(:stdio, :line)
   |> Stream.map(&String.trim/1)
-  |> Stream.each(fn _ -> Process.put(:line_count, Process.get(:line_count, 0) + 1) end)
   |> Stream.map(fn line ->
     line = String.replace(line, " @ ", ", ")
 
